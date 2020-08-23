@@ -1,0 +1,26 @@
+{
+  "name": "Paris Métro 1",
+  "short_name": "Metro",
+  "icons": [{
+    "src": "/images/ic_add_white_24px.svg",
+      "sizes": "24x24",
+      "type": "image/svg"
+    }, {
+      "src": "/images/ic_refresh_white_24px.svg",
+      "sizes": "24x24",
+      "type": "image/svg"
+    }, {
+      "src": "/images/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+	  "purpose": "maskable"
+    }, {
+      "src": "/images/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    }],
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#3E4EB8",
+  "theme_color": "#2F3BA2"
+}
