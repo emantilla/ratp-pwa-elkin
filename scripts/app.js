@@ -4,11 +4,12 @@
     var app = {
         isLoading: true,
         visibleCards: {},
-        selectedTimetables: JSON.parse(localStorage.getItem("selectedTimetables")),
+        selectedTimetables: [],
         spinner: document.querySelector('.loader'),
         cardTemplate: document.querySelector('.cardTemplate'),
         container: document.querySelector('.main'),
-        addDialog: document.querySelector('.dialog-container')
+        addDialog: document.querySelector('.dialog-container'),
+		db: {}
     };
 
 
@@ -39,8 +40,8 @@
             app.selectedTimetables = [];
         }
         app.getSchedule(key, label);
-        app.selectedTimetables.push({key: key, label: label});
-		localStorage.setItem("selectedTimetables", JSON.stringify(app.selectedTimetables));
+		app.addStation(key, label);
+		app.getAllObjectStore()
         app.toggleAddDialog(false);
     });
 
@@ -109,8 +110,44 @@
      * Methods for dealing with the model
      *
      ****************************************************************************/
-
-
+	
+	app.getObjectStore = function () {
+		var tx = app.db.transaction("stations", "readwrite");
+		return tx.objectStore("stations");		
+	}
+	
+	app.getAllObjectStore = function () {
+		var tx = app.db.transaction("stations").objectStore("stations");
+		tx.getAll().onsuccess = function(event) {
+			app.selectedTimetables = event.target.result
+			app.selectedTimetables.forEach(card => {
+				app.getSchedule(card.key, card.label);
+			});
+		}
+	}
+	
+	app.addStation = function (key, label) {
+		var obj = { key: key, label: label };
+		
+		var store = app.getObjectStore("stations", 'readwrite');
+		var req;
+		try {
+		  req = store.add(obj);
+		} catch (e) {
+		  if (e.name == 'DataCloneError')
+			displayActionFailure("This engine doesn't know how to clone a Blob, " +
+								 "use Firefox");
+		  throw e;
+		}
+		req.onsuccess = function (evt) {
+		  console.log("Insertion in DB successful");
+		  app.selectedTimetables.push({key: key, label: label});
+		};
+		req.onerror = function() {
+		  console.error("addPublication error", this.error);
+		  displayActionFailure(this.error);
+		};
+	}
     app.getSchedule = function (key, label) {
         var url = 'https://api-ratp.pierre-grimaud.fr/v3/schedules/' + key;
 
@@ -180,21 +217,22 @@
      *   Instead, check out IDB (https://www.npmjs.com/package/idb) or
      *   SimpleDB (https://gist.github.com/inexorabletash/c8069c042b734519680c)
      ************************************************************************/
-
-    app.selectedTimetables = JSON.parse(localStorage.getItem("selectedTimetables"));
-	if (!app.selectedTimetables) {
-        app.selectedTimetables = [];
-		app.getSchedule('metros/1/bastille/A', 'Bastille, Direction La Défense');
-		app.selectedTimetables = [
-			{key: initialStationTimetable.key, label: initialStationTimetable.label}
-		];
-		localStorage.setItem("selectedTimetables", JSON.stringify( app.selectedTimetables));
-    }else {
-		app.selectedTimetables.forEach(card => {
-		app.getSchedule(card.key, card.label);
-		});
+	var req = indexedDB.open('METRO_PARIS', 1);
+	req.onsuccess = function (evt) {
+		app.db = this.result;
+		app.getAllObjectStore();
 	}
-	
-	
+	req.onerror = function (evt) {
+	  console.error("openDb:", evt.target.errorCode);
+	};
+	req.onupgradeneeded = function(event) {
+		app.db = event.target.result;
+		var obj = { key: initialStationTimetable.key, label: initialStationTimetable.label };
+		var objectStore = app.db.createObjectStore("stations", { keyPath: "key" });
+		objectStore.createIndex("label", "label", { unique: false });
+		app.selectedTimetables = [];
+		app.getSchedule('metros/1/bastille/A', 'Bastille, Direction La Défense');
+		objectStore.add(obj);
+	};
 	
 })();
